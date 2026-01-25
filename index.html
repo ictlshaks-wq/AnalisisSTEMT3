@@ -327,15 +327,15 @@
 
                 <!-- Taburan Kategori Sekolah - Visual Seragam -->
                 <div class="mb-4">
-                    <h6 class="fw-bold mb-3 small text-primary">Taburan Mengikut Kategori (Pemetaan IMK & UASA)</h6>
+                    <h6 class="fw-bold mb-3 small text-primary" id="distributionTitle">Taburan Mengikut Kategori (Pemetaan IMK & UASA)</h6>
                     <div id="schoolCategoryDistribution" class="row row-cols-2 row-cols-md-4 row-cols-lg-6 g-2">
                         <!-- Kad kategori dijana di sini -->
                     </div>
                 </div>
 
                 <div class="d-flex justify-content-between align-items-center mb-2 mt-4">
-                    <h6 class="fw-bold mb-0">Senarai Murid Institusi</h6>
-                    <button class="btn btn-success btn-sm fw-bold" onclick="exportSchoolSpecificData()">📥 Eksport Excel Sekolah</button>
+                    <h6 class="fw-bold mb-0" id="listTitle">Senarai Murid Institusi</h6>
+                    <button class="btn btn-success btn-sm fw-bold" onclick="exportSchoolSpecificData()">📥 Eksport Excel Senarai</button>
                 </div>
                 <div class="table-responsive" style="max-height: 400px; border: 1px solid #dee2e6; border-radius: 8px;">
                     <table class="table table-sm table-striped table-hover mb-0">
@@ -590,11 +590,17 @@
     function updateSchoolDropdown() {
         const ppdVal = document.getElementById('ppdFilter').value;
         const schoolSet = new Set();
+        
+        // Reset schoolSpecificData jika PPD dipilih supaya ia paparkan data PPD
+        schoolSpecificData = [];
+
         fullData.forEach(d => {
             if(!ppdVal || d['KET_PPD'] === ppdVal) {
                 if(d['NAMA_PENUH_INSTITUSI']) schoolSet.add(d['NAMA_PENUH_INSTITUSI']);
+                if(ppdVal && d['KET_PPD'] === ppdVal) schoolSpecificData.push(d);
             }
         });
+
         const schoolFilter = document.getElementById('schoolFilter');
         schoolFilter.innerHTML = '<option value="">-- PILIH SEKOLAH --</option>';
         [...schoolSet].sort().forEach(sch => {
@@ -603,23 +609,28 @@
             opt.textContent = sch;
             schoolFilter.appendChild(opt);
         });
-        document.getElementById('schoolDetailContent').style.display = 'none';
+
+        if (ppdVal && schoolSpecificData.length > 0) {
+            document.getElementById('distributionTitle').innerText = `Taburan Mengikut Kategori PPD: ${ppdVal}`;
+            document.getElementById('listTitle').innerText = `Senarai Murid Keseluruhan PPD: ${ppdVal}`;
+            renderDetailedStats(schoolSpecificData);
+            document.getElementById('schoolDetailContent').style.display = 'block';
+        } else {
+            document.getElementById('schoolDetailContent').style.display = 'none';
+        }
     }
 
     let schoolSpecificData = [];
 
-    function showDetailedSchoolStats() {
-        const schVal = document.getElementById('schoolFilter').value;
-        if(!schVal) {
-            document.getElementById('schoolDetailContent').style.display = 'none';
-            return;
-        }
+    // Fungsi Pembantu untuk menjana visual perincian (PPD atau Sekolah)
+    function renderDetailedStats(data) {
+        const total = data.length;
+        if (total === 0) return;
 
-        schoolSpecificData = fullData.filter(d => d['NAMA_PENUH_INSTITUSI'] === schVal);
-        const total = schoolSpecificData.length;
-        const layak = schoolSpecificData.filter(d => String(d['STATUS UASA'] || '').includes('LAYAK')).length;
-        const ri = schoolSpecificData.filter(d => ['R','I'].includes(d['KOD IMK'])).length;
+        const layak = data.filter(d => String(d['STATUS UASA'] || '').includes('LAYAK')).length;
+        const ri = data.filter(d => ['R','I'].includes(d['KOD IMK'])).length;
 
+        // 1. Kemaskini Kad Statistik
         const statsHtml = `
             <div class="col-4"><div class="card stat-card card-total"><span class="stat-value" style="font-size:1.2rem">${total}</span><span class="stat-label">Jumlah Murid</span></div></div>
             <div class="col-4"><div class="card stat-card card-layak"><span class="stat-value" style="font-size:1.2rem">${layak} (${((layak/total)*100).toFixed(1)}%)</span><span class="stat-label">Layak STEM</span></div></div>
@@ -627,18 +638,16 @@
         `;
         document.getElementById('schoolResultStats').innerHTML = statsHtml;
 
-        // Jana taburan kategori khusus sekolah - VISUAL SERAGAM
-        const schMappingCounts = {};
-        schoolSpecificData.forEach(d => {
+        // 2. Kemaskini Taburan Kategori
+        const mappingCounts = {};
+        data.forEach(d => {
             const lbl = String(d['PEMETAAN IMK DAN UASA'] || 'TIADA DATA').trim();
-            schMappingCounts[lbl] = (schMappingCounts[lbl] || 0) + 1;
+            mappingCounts[lbl] = (mappingCounts[lbl] || 0) + 1;
         });
 
         const catDistEl = document.getElementById('schoolCategoryDistribution');
         catDistEl.innerHTML = "";
-        
-        // Isihan kategori mengikut bilangan tertinggi
-        Object.entries(schMappingCounts).sort((a,b) => b[1] - a[1]).forEach(([label, count]) => {
+        Object.entries(mappingCounts).sort((a,b) => b[1] - a[1]).forEach(([label, count]) => {
             const perc = ((count/total)*100).toFixed(1);
             const col = document.createElement('div');
             col.className = 'col';
@@ -652,8 +661,9 @@
             catDistEl.appendChild(col);
         });
 
+        // 3. Kemaskini Jadual Senarai Murid
         const tableBody = document.getElementById('schoolDetailTableBody');
-        tableBody.innerHTML = schoolSpecificData.map(s => `
+        tableBody.innerHTML = data.map(s => `
             <tr>
                 <td class="small fw-bold">${s['NAMA_MURID'] || '-'}</td>
                 <td class="small text-center">${s['JANTINA'] || '-'}</td>
@@ -662,17 +672,31 @@
                 <td class="text-center fw-bold">${s['KOD IMK'] || '-'}</td>
             </tr>
         `).join('');
+    }
 
+    function showDetailedSchoolStats() {
+        const schVal = document.getElementById('schoolFilter').value;
+        if(!schVal) {
+            // Jika sekolah tidak dipilih semula, paparkan data PPD semula
+            updateSchoolDropdown();
+            return;
+        }
+
+        document.getElementById('distributionTitle').innerText = `Taburan Mengikut Kategori Sekolah: ${schVal}`;
+        document.getElementById('listTitle').innerText = `Senarai Murid Institusi: ${schVal}`;
+        
+        schoolSpecificData = fullData.filter(d => d['NAMA_PENUH_INSTITUSI'] === schVal);
+        renderDetailedStats(schoolSpecificData);
         document.getElementById('schoolDetailContent').style.display = 'block';
     }
 
     function exportSchoolSpecificData() {
         if (!schoolSpecificData.length) return;
-        const schName = document.getElementById('schoolFilter').value || "Sekolah";
+        const schName = document.getElementById('schoolFilter').value || document.getElementById('ppdFilter').value || "Analisis_Perincian";
         const ws = XLSX.utils.json_to_sheet(schoolSpecificData);
         const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Senarai Murid");
-        XLSX.writeFile(wb, `Analisis_STEM_${schName.substring(0,20)}.xlsx`);
+        XLSX.utils.book_append_sheet(wb, ws, "Senarai");
+        XLSX.writeFile(wb, `Analisis_STEM_${schName.substring(0,30)}.xlsx`);
     }
 
     function searchInStudentTable() {
