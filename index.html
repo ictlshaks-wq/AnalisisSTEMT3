@@ -57,11 +57,31 @@
         /* Interactive List */
         .chart-title { font-weight: 700; color: #1a73e8; margin-bottom: 15px; border-left: 6px solid #ffca28; padding-left: 15px; font-size: 1.1rem; }
         
-        /* Pembetulan skrol */
+        /* Gaya Scrollbar Jelas & Berfungsi */
         .scroll-area { 
-            max-height: 500px; 
-            overflow-y: auto; 
-            padding-right: 5px; 
+            max-height: 380px !important; 
+            overflow-y: scroll !important; /* Paksa muncul */
+            padding-right: 10px;
+            scrollbar-width: thin;
+            scrollbar-color: #666 #eee;
+        }
+
+        /* Custom Scrollbar Chrome/Edge/Safari */
+        .scroll-area::-webkit-scrollbar {
+            width: 10px;
+            display: block !important;
+        }
+        .scroll-area::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        .scroll-area::-webkit-scrollbar-thumb {
+            background: #666; /* Warna gelap supaya nampak */
+            border-radius: 10px;
+            border: 2px solid #f1f1f1;
+        }
+        .scroll-area::-webkit-scrollbar-thumb:hover {
+            background: #1a73e8;
         }
         
         .category-item { 
@@ -83,7 +103,11 @@
         /* Tables & Sticky Headers */
         .table-container { background: white; border-radius: 12px; overflow: hidden; border: 1px solid #eee; }
         
-        /* Gaya Sticky Header yang diperkukuh */
+        /* Pastikan table container mengikut had scroll-area */
+        #schoolTableContainer {
+            max-height: 380px !important;
+        }
+
         .table thead th {
             position: sticky;
             top: 0;
@@ -91,19 +115,16 @@
             box-shadow: inset 0 -1px 0 rgba(0,0,0,0.1);
         }
         
-        /* Header warna putih untuk jadual biasa */
         .table:not(.table-dark) thead th {
             background-color: #f8f9fa;
             color: #333;
         }
 
-        /* Header warna gelap untuk jadual yang menggunakan table-dark */
         .table thead.table-dark th {
             background-color: #212529 !important;
             color: white !important;
         }
 
-        /* Memastikan teks dalam jadual sentiasa satu baris sahaja */
         .table td, .table th {
             white-space: nowrap;
             vertical-align: middle;
@@ -111,12 +132,10 @@
 
         .student-detail-panel { background: #fff; border-radius: 15px; border: 2px solid #1a73e8; display: none; margin-top: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
         
-        /* Utils */
         .interactive-chart { cursor: pointer; }
         .footer { padding: 40px 0; color: #888; text-align: center; font-size: 0.85rem; position: relative; }
         .btn-export { background-color: #34a853; color: white; font-weight: bold; }
         
-        /* Credits Box Bottom */
         .credits-box {
             background-color: #e8f0fe;
             color: #0d47a1;
@@ -139,7 +158,6 @@
             padding: 20px;
         }
 
-        /* Perincian Kategori Sekolah - Visual Seragam */
         .school-category-card {
             background: #fff;
             border: 1px solid #dee2e6;
@@ -165,7 +183,7 @@
 <div class="dashboard-header text-center">
     <div class="container">
         <div class="main-title-box">
-            <h1 class="fw-bold mb-1" style="font-size: 2rem;">📊 Dashboard STEM Pahang 2025</h1>
+            <h1 class="fw-bold mb-1" style="font-size: 2rem;">Analisis MP STEM dan IMK Tingkatan 3</h1>
             <p class="lead mb-0 opacity-75" style="font-size: 1.1rem;">Sistem Analisis Interaktif (PBD dan IMK)</p>
             <div class="dev-credit-top">
                 APLIKASI INI DIBANGUNKAN OLEH UNIT TMK, SEKTOR PEMBELAJARAN, JPN PAHANG
@@ -221,11 +239,12 @@
                     <div id="filterIndicator" class="badge bg-primary px-3 py-2">Tiada Data</div>
                 </div>
                 
+                <!-- Kontena Jadual - DIPERBAIKI UNTUK SKROL -->
                 <div class="table-container scroll-area" id="schoolTableContainer">
                     <table class="table table-hover align-middle mb-0">
                         <thead>
                             <tr>
-                                <th>Nama Institusi (Klik untuk senarai nama)</th>
+                                <th style="min-width: 70%;">Nama Institusi (Klik untuk senarai nama)</th>
                                 <th class="text-center">Bil. Murid</th>
                             </tr>
                         </thead>
@@ -273,7 +292,10 @@
     <div class="row">
         <div class="col-md-6">
             <div class="card p-4">
-                <h5 class="chart-title">Analisis mengikut PPD (Klik Bar)</h5>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h5 class="chart-title mb-0">Analisis mengikut PPD (Klik Bar)</h5>
+                    <button class="btn btn-xs btn-outline-secondary" style="font-size: 0.6rem; padding: 2px 5px;" onclick="resetFilters()">Reset PPD</button>
+                </div>
                 <div id="ppdBarChart" class="interactive-chart" style="height: 400px;"></div>
             </div>
         </div>
@@ -482,6 +504,8 @@
 
         const menu = document.getElementById('mappingMenu');
         menu.innerHTML = "";
+        
+        // 1. Tambah butang dinamik asal
         Object.entries(mappingCounts).sort((a,b) => b[1] - a[1]).forEach(([label, count]) => {
             const li = document.createElement('li');
             li.className = 'category-item';
@@ -495,8 +519,37 @@
             menu.appendChild(li);
         });
 
+        // 2. Tambah butang KHAS: Sekolah Kritikal Murid STEM
+        const specialLi = document.createElement('li');
+        specialLi.className = 'category-item mt-3 border-danger';
+        specialLi.innerHTML = `<span><strong class="text-danger">Sekolah Kritikal Murid STEM</strong><br><small class="text-muted">(Sains & Mat. Bawah Gred C)</small></span>`;
+        specialLi.onclick = () => {
+            document.querySelectorAll('.category-item').forEach(i => i.classList.remove('active'));
+            specialLi.classList.add('active');
+            filterSchoolsWithNoLayak();
+        };
+        menu.appendChild(specialLi);
+
         currentFilteredData = [...fullData];
         updateDashboardVisuals("Semua Data");
+    }
+
+    // Fungsi baharu untuk tapis sekolah yang langsung tiada murid LAYAK
+    function filterSchoolsWithNoLayak() {
+        if (fullData.length === 0) return;
+        
+        // Kenalpasti sekolah yang ada sekurang-kurangnya seorang LAYAK
+        const schoolsWithLayak = new Set();
+        fullData.forEach(d => {
+            if (String(d['STATUS UASA'] || '').toUpperCase().includes('LAYAK')) {
+                schoolsWithLayak.add(d['NAMA_PENUH_INSTITUSI']);
+            }
+        });
+
+        // Tapis murid dari sekolah yang TIADA dalam senarai schoolsWithLayak
+        currentFilteredData = fullData.filter(d => !schoolsWithLayak.has(d['NAMA_PENUH_INSTITUSI']));
+        
+        updateDashboardVisuals("Sekolah Kritikal Murid STEM");
     }
 
     function handleInteraction(col, val, displayLabel) {
@@ -533,7 +586,14 @@
 
             const imk = { 'A':0, 'E':0, 'I':0, 'K':0, 'R':0, 'S':0 };
             currentFilteredData.forEach(d => { if(imk[d['KOD IMK']] !== undefined) imk[d['KOD IMK']]++; });
-            Plotly.restyle('imkChart', { y: [Object.values(imk)], x: [Object.keys(imk)], text: [Object.values(imk)], marker: {color: '#1a73e8'} });
+            const imkKeys = Object.keys(imk);
+            const imkColors = imkKeys.map(k => (k === 'I' || k === 'R') ? '#1a73e8' : '#ff9800');
+            Plotly.restyle('imkChart', { 
+                y: [Object.values(imk)], 
+                x: [imkKeys], 
+                text: [Object.values(imk)], 
+                'marker.color': [imkColors] 
+            });
 
             const ppdCounts = {};
             currentFilteredData.forEach(d => { const p = String(d['KET_PPD'] || 'TIADA PPD').trim(); ppdCounts[p] = (ppdCounts[p] || 0) + 1; });
